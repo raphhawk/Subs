@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -89,10 +90,15 @@ func initRedis() *redis.Pool {
 func (app *Config) shutdown() {
 	app.InfoLog.Println("Starting Cleanup...")
 	app.Wait.Wait()
+	app.Mailer.DoneChan <- true
 	app.InfoLog.Println("closing channels and shutting down application...")
+
+	close(app.Mailer.MailerChan)
+	close(app.Mailer.ErrorChan)
+	close(app.Mailer.DoneChan)
 }
 
-func (app *Config) listenForShitDown() {
+func (app *Config) listenForShutDown() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -114,11 +120,31 @@ func (app *Config) serve() {
 	}
 }
 
+func (app *Config) createMail() Mail {
+	errorChan := make(chan error)
+	mailerChan := make(chan Message, 100)
+	mailerDoneChan := make(chan bool)
+
+	m := Mail{
+		Domain:      "localhost",
+		Host:        "localhost",
+		Port:        1025,
+		Encryption:  "none",
+		FromName:    "info",
+		FromAddress: "info@mycompany.com",
+		Wait:        app.Wait,
+		ErrorChan:   errorChan,
+		MailerChan:  mailerChan,
+		DoneChan:    mailerDoneChan,
+	}
+
+	return m
+}
+
 func main() {
 	// connect to DB
 	db := intiDB()
 	db.Ping()
-
 	// create sessions
 	session := initSession()
 
@@ -139,8 +165,13 @@ func main() {
 	}
 
 	// setup mail
+	app.Mailer = app.createMail()
+	fmt.Println("reached here shutdown")
+	go app.listenForMail()
+
 	// listen for signals
-	go app.listenForShitDown()
+	go app.listenForShutDown()
+
 	// listen for web connections
 	app.serve()
 }
