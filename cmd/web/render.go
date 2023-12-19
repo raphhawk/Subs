@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"net/http"
 	"time"
+
+	"github.com/raphhawk/subs/data"
 )
 
 var pathToTemplate = "cmd/web/templates"
@@ -17,7 +19,7 @@ type TemplateData struct {
 	Flash, Warning, Error string
 	Authenticated         bool
 	Now                   time.Time
-	//User *data.User
+	User                  *data.User
 }
 
 func (app *Config) isAuthenticated(r *http.Request) bool {
@@ -33,7 +35,12 @@ func (app *Config) AddDefaultData(
 	td.Error = app.Session.PopString(r.Context(), "error")
 	if app.isAuthenticated(r) {
 		td.Authenticated = true
-		// TODO - get more user info
+		user, ok := app.Session.Get(r.Context(), "user").(data.User)
+		if !ok {
+			app.ErrorLog.Println("cant get user for session")
+		} else {
+			td.User = &user
+		}
 	}
 	td.Now = time.Now()
 	return td
