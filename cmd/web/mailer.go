@@ -12,14 +12,15 @@ import (
 )
 
 type Message struct {
-	From        string
-	FromName    string
-	To          string
-	Subject     string
-	Attachments []string
-	Data        any
-	DataMap     map[string]any
-	Template    string
+	From           string
+	FromName       string
+	To             string
+	Subject        string
+	Attachments    []string
+	AttachmentsMap map[string]string
+	Data           any
+	DataMap        map[string]any
+	Template       string
 }
 
 type Mail struct {
@@ -134,11 +135,18 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 	if msg.FromName == "" {
 		msg.FromName = m.FromName
 	}
-
-	data := map[string]any{
-		"message": msg.Data,
+	if msg.AttachmentsMap == nil {
+		msg.AttachmentsMap = make(map[string]string)
 	}
-	msg.DataMap = data
+
+	//data := map[string]any{
+	//	"message": msg.Data,
+	//}
+
+	if len(msg.DataMap) == 0 {
+		msg.DataMap = make(map[string]any)
+	}
+	msg.DataMap["message"] = msg.Data
 
 	formattedMessage, err := m.buildHTMLMessage(msg)
 	if err != nil {
@@ -176,6 +184,11 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 	if len(msg.Attachments) > 0 {
 		for _, x := range msg.Attachments {
 			email.AddAttachment(x)
+		}
+	}
+	if len(msg.AttachmentsMap) > 0 {
+		for key, value := range msg.AttachmentsMap {
+			email.AddAttachment(value, key)
 		}
 	}
 
