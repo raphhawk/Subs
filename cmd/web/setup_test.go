@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/gob"
 	"log"
 	"net/http"
@@ -14,6 +15,14 @@ import (
 )
 
 var testApp Config
+
+func getCtx(req *http.Request) context.Context {
+	ctx, err := testApp.Session.Load(req.Context(), req.Header.Get("X-Session"))
+	if err != nil {
+		log.Println(err)
+	}
+	return ctx
+}
 
 func TestMain(m *testing.M) {
 	gob.Register(data.User{})
