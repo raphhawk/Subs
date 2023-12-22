@@ -38,14 +38,14 @@ func TestConfig_IsAuthenticated(t *testing.T) {
 	auth := testApp.isAuthenticated(req)
 	if auth {
 		t.Error("returns true for authenticated, when it should be false")
-	}
 
-	testApp.Session.Put(ctx, "userId", 1)
-	auth = testApp.isAuthenticated(req)
-	if !auth {
-		t.Error("returns false for authenticated, when it should be true")
-	}
+		testApp.Session.Put(ctx, "userId", 1)
+		auth = testApp.isAuthenticated(req)
+		if !auth {
+			t.Error("returns false for authenticated, when it should be true")
+		}
 
+	}
 }
 
 func TestConfig_render(t *testing.T) {

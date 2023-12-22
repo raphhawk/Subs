@@ -13,6 +13,11 @@ import (
 	"github.com/raphhawk/subs/data"
 )
 
+var (
+	pathToManual = "./pdf"
+	tmpPath      = "./tmp"
+)
+
 func (app *Config) HomePage(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -50,7 +55,7 @@ func (app *Config) PostLoginPage(
 		return
 	}
 
-	validPassword, err := user.PasswordMatches(password)
+	validPassword, err := app.Models.User.PasswordMatches(password)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Invalid Credentials")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -112,7 +117,7 @@ func (app *Config) PostRegisterPage(
 		IsAdmin:   0,
 	}
 
-	_, err = u.Insert(u)
+	_, err = app.Models.User.Insert(u)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Unable to create user.")
 		http.Redirect(w, r, "/register", http.StatusSeeOther)
@@ -155,7 +160,7 @@ func (app *Config) ActivateAccount(
 	}
 
 	u.Active = 1
-	if err = u.Update(); err != nil {
+	if err = app.Models.User.Update(*u); err != nil {
 		app.Session.Put(r.Context(), "error", "Unable to Update user.")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -178,7 +183,7 @@ func (app *Config) generateManual(
 	importer := gofpdi.NewImporter()
 	time.Sleep(5 * time.Second)
 
-	t := importer.ImportPage(pdf, "./pdf/manual.pdf", 1, "/MediaBox")
+	t := importer.ImportPage(pdf, fmt.Sprintf("%s/manual.pdf", pathToManual), 1, "/MediaBox")
 	pdf.AddPage()
 
 	importer.UseImportedTemplate(pdf, t, 0, 0, 215.9, 0)
@@ -234,7 +239,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer app.Wait.Done()
 		pdf := app.generateManual(user, plan)
-		err := pdf.OutputFileAndClose(fmt.Sprintf("./tmp/%d_manual.pdf", user.ID))
+		err := pdf.OutputFileAndClose(fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID))
 		if err != nil {
 			app.ErrorChan <- err
 			return
@@ -246,7 +251,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 			Data:    "Your user manual is attached",
 
 			AttachmentsMap: map[string]string{
-				"Manual.pdf": fmt.Sprintf("./tmp/%d_manual.pdf", user.ID),
+				"Manual.pdf": fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID),
 			},
 		}
 
